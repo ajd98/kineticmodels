@@ -1,42 +1,7 @@
 #!/usr/bin/env python
 import numpy
-import numpy.linalg
 import scipy.linalg
-
-class BayesianEstimatorPoisson(object):
-    def __init__(self, time_vec, count_matrix):
-        self.count_matrix = count_matrix
-        self.time_vec = time_vec
-
-    def likelihood(self, k):
-        # 3 -> 1
-        t = self.time_vec
-        n = self.count_matrix
-        
-        val = (k*t)**n*numpy.exp(-k*t)/scipy.special.gamma(n+1)
-        # normalize
-        val = val*t_tot
-        return val
-
-    def random_estimate(self):
-        '''
-        Return an n-by-n matrix wherer the i,j element represents the transition
-        rate from state i to state j.  Each element is chosen randomly from the
-        likelihood (the posterior probability for the transition rate, given
-        that self.count_matrix events were observed in period time_vec, using
-        uniform prior).
-        '''
-        estimate = numpy.empty(self.count_matrix.shape, dtype=float)
-        for i in xrange(self.count_matrix.shape):
-            for j in xrange(self.count_matrix.shape):
-                n = self.count_matrix[i,j]
-                t = self.time_vec[i]
-                if n >= 0 and t > 0:
-                    estimate[i,j] = numpy.random.gamma(n+1,scale=1./t) 
-                else:
-                    estimate[i,j] = 0
-        return estimate
-
+import stats
 
 class CtsTimeMC(object):
     def __init__(self, time_vec, count_matrix):
@@ -47,7 +12,7 @@ class CtsTimeMC(object):
         '''
         self.time_vec = time_vec
         self.count_matrix = count_matrix
-        self.estimator = BayesianEstimatorPoisson(time_vec, count_matrix)
+        self.estimator = stats.BayesianEstimatorPoisson(time_vec, count_matrix)
 
     def _solve(self, transmat):
         '''
@@ -72,8 +37,8 @@ class CtsTimeMC(object):
         l = numpy.empty(self.time_vec.shape)
         u = numpy.empty(self.time_vec.shape)
         for i in xrange(self.time_vec.shape[0]):
-            l[i] = estimates[:,i].sort()[int(alpha*nestimates)]
-            u[i] = estimates[:,i].sort()[int((1-alpha)*nestimates)]
+            l[i] = estimates[:,i].sort()[int(alpha/2.*nestimates)]
+            u[i] = estimates[:,i].sort()[int((1-alpha/2.)*nestimates)]
         transmat = self.count_matrix
         for i in xrange(self.time_vec.shape[0]):
             transmat[i,:] /= self.timevec[i]
