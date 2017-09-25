@@ -8,7 +8,6 @@ class BayesianEstimatorPoisson(object):
         self.time_vec = time_vec
 
     def likelihood(self, k):
-        # 3 -> 1
         t = self.time_vec
         n = self.count_matrix
         

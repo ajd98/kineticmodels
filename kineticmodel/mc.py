@@ -21,8 +21,33 @@ class CtsTimeMC(object):
         '''
         # We know P(t) = exp(M*t), where M is the transition matrix.
         # find the time for very larget
-        t = 1/transmat[transmat > 0].min()*1e+6
-        return scipy.linalg.expm(transmat*t)
+        t = 1/(transmat[transmat > 0].min())*1.0e+4
+        try:
+            result = self.time_vec.dot(scipy.linalg.expm(transmat*t))
+        except ValueError:
+            print(transmat)
+            print(transmat*t)
+            raise Exception 
+
+        # find left eigenvectors
+        # first, make stochastic matrix
+        #stochmat = numpy.copy(transmat)
+        #for i in xrange(stochmat.shape[0]):
+        #    # row normalize
+        #    stochmat[i] /= stochmat[i].sum()
+        #print(stochmat)
+        #eigvals, eigvecs = scipy.linalg.eig(stochmat, left=True, right=False)
+        #where_one = numpy.argmax(eigvals)
+        #print(eigvals[where_one])
+
+        #result = eigvecs[where_one]
+
+        return result/result.sum()
+
+    def transmat_to_generator(self, transmat):
+        for i in xrange(transmat.shape[0]):
+            transmat[i,i] = -1*(transmat[i].sum()-transmat[i,i])
+        return transmat
 
     def calculate_stationary_distribution(self, alpha=0.05, nestimates=1000):
         '''
@@ -33,16 +58,21 @@ class CtsTimeMC(object):
         '''
         estimates = numpy.empty((nestimates,self.time_vec.shape[0]))
         for i in xrange(nestimates):
-            estimates[i] = self._solve(self.estimator.random_estimate())
+            transmat = self.estimator.random_estimate()
+            generatormat = self.transmat_to_generator(transmat)
+            estimates[i] = self._solve(generatormat)
         l = numpy.empty(self.time_vec.shape)
         u = numpy.empty(self.time_vec.shape)
         for i in xrange(self.time_vec.shape[0]):
-            l[i] = estimates[:,i].sort()[int(alpha/2.*nestimates)]
-            u[i] = estimates[:,i].sort()[int((1-alpha/2.)*nestimates)]
-        transmat = self.count_matrix
+            estimates[:,i].sort()
+            l[i] = estimates[:,i][int(alpha/2.*nestimates)]
+            u[i] = estimates[:,i][int((1-alpha/2.)*nestimates)]
+        transmat = numpy.require(numpy.copy(self.count_matrix), dtype=float)
         for i in xrange(self.time_vec.shape[0]):
-            transmat[i,:] /= self.timevec[i]
-        m = self._solve(transmat)
+            if self.time_vec[i] > 0:
+                transmat[i,:] /= self.time_vec[i]
+        generatormat = self.transmat_to_generator(transmat)
+        m = self._solve(generatormat)
         return m, l, u
 
 
